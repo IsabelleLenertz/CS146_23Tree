@@ -135,7 +135,7 @@ public class TwoThreeTreeTests
 	      t.insert(32);
 	      
 	      String expected = "20 50";
-	      assertEquals(expected, t.search(20));
+	      assertEquals(expected, t.search(20));		// returns 20 20 instead of 20 50
 	      assertEquals(expected, t.search(50));
 	      expected = "1";
 	      assertEquals(expected, t.search(1));
