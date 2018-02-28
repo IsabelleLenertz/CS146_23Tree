@@ -1,4 +1,4 @@
-package src;
+
 
 import static org.junit.Assert.*;
 
@@ -117,6 +117,40 @@ public class TwoThreeTreeTests
       assertEquals(expected, t.search(3));
    }
 
+   @Test
+   public void secondSplitRight() {
+	      TwoThreeTree t = new TwoThreeTree();
+	      t.insert(1);
+	      t.insert(50);
+	      t.insert(100);
+	      t.insert(20);
+	      t.insert(200);
+	      t.insert(150);
+	      t.insert(30);
+	      t.insert(130);
+	      t.insert(300);
+	      t.insert(2);
+	      t.insert(35);
+	      t.insert(3);
+	      t.insert(32);
+	      
+	      String expected = "20 50";
+	      assertEquals(expected, t.search(20));
+	      assertEquals(expected, t.search(50));
+	      expected = "1";
+	      assertEquals(expected, t.search(1));
+	      expected = "2";
+	      assertEquals(expected, t.search(2));
+	      expected = "30";
+	      assertEquals(expected, t.search(30));
+	      assertEquals(expected, t.search(31));
+	      expected = "100 130";
+	      assertEquals(expected, t.search(130));
+	      expected = "200 300";
+	      assertEquals(expected, t.search(300));
+	      assertEquals(expected, t.search(301));
+   }
+   
    @Test
    public void testTwoCascadeSplitRight() {
 	      TwoThreeTree t = new TwoThreeTree();

@@ -1,10 +1,10 @@
-package src;
+
 
 import java.util.PriorityQueue;
 
 public class TwoThreeTree {
 	
-	private class Node implements Comparable<Node>{
+	private static class Node implements Comparable<Node>{
 		private Node leftChild = null;
 		private Node middleChild = null;
 		private Node rightChild = null;
