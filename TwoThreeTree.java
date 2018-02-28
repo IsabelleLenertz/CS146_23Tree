@@ -5,38 +5,45 @@ import java.util.PriorityQueue;
 public class TwoThreeTree {
 	
 	private static class Node implements Comparable<Node>{
-		private Node leftChild = null;
-		private Node middleChild = null;
-		private Node rightChild = null;
-		private Node parentNode = null;
-		private Integer key1 = null;
-		private Integer key2 = null;
+		private static final int MAX_CHILDREN = 4;
+		private static final int MAX_KEYS = 3;
 		
-		/** Default constructor
-		 * 
+		private Node[] children = new Node[Node.MAX_CHILDREN];
+		private int numChildren = 0;
+		private int[] keys = new int[Node.MAX_KEYS];
+		private int numKeys = 0;
+		
+		
+		
+		/** 
+		 * Constructor needs to take at least a key
 		 */
 		public Node(int x)  {
-			this.key1 = x;
+			this.keys[0] = x;
+			this.numKeys++;
 		}
 		
+		/**
+		 * Add a child to the node if the max number of children was not already reached
+		 * @param child
+		 */
+		public void addChild(Node child) {
+			if(this.numChildren < Node.MAX_CHILDREN) {
+				this.children[numChildren] = child;
+				this.numChildren++;
+			}
+		}
 		
-		// Mutator
-		public void setLeft(Node aNode) 		{ this.leftChild = aNode; }
-		public void setMiddle(Node aNode)	 	{ this.middleChild = aNode; }
-		public void setRight(Node aNode) 		{ this.rightChild = aNode; }
-		public void setParent(Node aNode) 		{ this.parentNode = aNode; }
-		public void setKey1(Integer aKey)		{ this.key1 = aKey; }
-		public void setKey2(Integer aKey)		{ this.key2 = aKey; }
-		
-		// Accessory
-		public Node getLeft()		{ return this.leftChild; }
-		public Node getRight()		{ return this.rightChild; }
-		public Node getMiddle() 	{ return this.middleChild; }
-		public Node getParent() 	{ return this.parentNode; }
-		public Integer getKey1()	{ return this.key1; }
-		public Integer getKey2()	{ return this.key2; }
-
-
+		/**
+		 * Add a key to the node if the max number of key was not already reached
+		 * @param child
+		 */
+		public void addKey(int key) {
+			if(this.numChildren < Node.MAX_CHILDREN) {
+				this.keys[numKeys] = key;
+				this.numKeys++;
+			}
+		}
 		/**
 		 * Compare the Nodes using their first key.
 		 */
