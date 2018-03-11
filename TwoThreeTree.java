@@ -1,10 +1,9 @@
-
-
-import java.util.PriorityQueue;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class TwoThreeTree {
 	
-	private static class Node implements Comparable<Node>{
+	private static class Node {
 		private static final int MAX_CHILDREN = 4;
 		private static final int MAX_KEYS = 3;
 		
@@ -25,41 +24,196 @@ public class TwoThreeTree {
 		
 		/**
 		 * Add a child to the node if the max number of children was not already reached
-		 * @param child
+		 * precondition: numChildren - numKeys <= 1
+		 * @param child node child to add at the right position
 		 */
 		public void addChild(Node child) {
-			if(this.numChildren < Node.MAX_CHILDREN) {
-				this.children[numChildren] = child;
+			if(this.numChildren < Node.MAX_CHILDREN && (numChildren - numKeys <= 1) ) {
+				// Check where to add the child
+				int i = numChildren;
+				while (i >= 0) {
+					if( i == 0) {
+						children[i] = child;
+					} else if (keys[i-1] > child.keys[0]) {
+						children[i] = children [i-1];
+					} else {
+						children[i] = child;
+						break;
+					}
+					i--;
+				}
 				this.numChildren++;
 			}
 		}
 		
 		/**
 		 * Add a key to the node if the max number of key was not already reached
-		 * @param child
+		 * @param key value to add to the leaf
+		 * @return null is the leaf node did not split, a reference to the resulting node (itself) if the node split.
 		 */
-		public void addKey(int key) {
-			if(this.numChildren < Node.MAX_CHILDREN) {
-				this.keys[numKeys] = key;
-				this.numKeys++;
+		private Node addKeytoLeaf(int key) {
+			if(this.numKeys < Node.MAX_KEYS) {
+				// Check where to insert the new key
+				int i = numKeys;
+				keys[numKeys] = key;
+				Arrays.sort(keys, 0, numKeys);
+				numKeys++;
+
+				/**
+				while( i >= 0 ) {
+					// If the new key goes to the right of the current key
+					if( i == 0 ) {
+						keys[i] = key;
+					// If the new key  goes to the left of the current key, moves the current key to free up some space
+					} else if ( keys[i-1] > key) {
+						keys[i] = keys[i-1];
+					// If the new key goes to the last position
+					} else {
+						keys[i] = key;
+						break;
+					}
+					i--;
+				} */
+				
+				if (numKeys == Node.MAX_KEYS) {
+					// Send the new Node back to its parent to merge the key and children
+					return splitLeaf(this);
+				}
 			}
+			// Signify no new nodes were created (nothing was split)
+			return null;
 		}
-		/**
-		 * Compare the Nodes using their first key.
-		 */
-		@Override
-		public int compareTo(Node other) {
+		
+		private Node splitLeaf(Node leaf) {
+			Node center = new Node(keys[1]);
+			Node right = new Node(keys[2]);
+			Node left = new Node(keys[0]);
 			
-			// if the key of this has not been set up yet, the node come last
-			if(this.key1 == null) {
-				return -1;
-			} else if (other.key1 == null) {
-				return +1;
-			} else {
-				return Integer.compare(this.key1, other.key1);
-			}
+			center.addChild(left);
+			center.addChild(right);
+			
+			leaf = center;
+			return leaf;
+			
+			
 		}
-	}
+		
+		private boolean isLeaf()  { return ( numChildren == 0 ); }
+		
+		/**
+		 * Recursive function adding a key to a series of node
+		 * @param key value to insert
+		 * @return null is the node did not split, a reference to the resulting node (itself) if the node split.
+		 */
+		public Node addKey(int key) {
+			Node childToMerge = null;
+			
+			// Exit case: If the node is a leaf
+			if( isLeaf() ) {
+				childToMerge = this.addKeytoLeaf(key);
+			// Recursive case: go down the children until finding the leaf
+			}else {
+				int i = 0;
+				while(keys[i] < key && i < Node.MAX_KEYS) {
+					i++;
+				}
+				// Check for duplicate
+				if (keys[i] == key) {
+					return null;
+				}
+				// Go to the appropriate child to insert the key
+				childToMerge = children[i].addKey(key);
+			}
+			
+			// If a split occurred within one of the children, merges the new node and returns the result of the merge back to parent
+			if(childToMerge!= null) {
+				return this.merge(childToMerge);
+			}
+			
+			// Signify no nodes were split
+			return null;
+		}
+		
+		/**
+		 * merges the keys and children of two nodes and check if the resulting node needs to split
+		 * @param child node to merge with
+		 * @return null if the resulting node did not split, a reference to the resulting node if the node split.
+		 */
+		private Node merge(Node child) {
+			this.addKey(child.keys[0]);
+			this.addChild(child.children[0]);
+			this.addChild(child.children[1]);
+			if (numChildren == Node.MAX_CHILDREN || numKeys == Node.MAX_KEYS) {
+				return splitNode(this);
+			}
+			return null;
+		}
+		
+		/**
+		 * Split a node of 4 children and 3 keys
+		 * precondition: the node calling the function has to have 4 children and three keys
+		 * @return a reference to the center node created, to be given to its parent node for merging
+		 */
+		public Node splitNode(Node overLoadedNode) {
+			// Create the new nodes
+			Node center = new Node(keys[1]);
+			Node right = new Node(keys[0]);
+			Node left = new Node(keys[2]);
+			
+			// Set the children of the middle nodes
+			center.addChild(right);
+			center.addChild(left);
+			
+			// Set the children of the left and right nodes
+			right.addChild(overLoadedNode.children[0]);
+			right.addChild(overLoadedNode.children[1]);
+			left.addChild(overLoadedNode.children[2]);
+			left.addChild(overLoadedNode.children[3]);
+			
+			overLoadedNode = center;
+			return center;
+		}
+		
+		/**
+		 * Return the node either contains the given value or the last node before the end of the tree.
+		 * @param value value to look for
+		 * @return a node containing the value or the last node encountered
+		 */
+		public Node search(int value) {
+			// Exit Case: there are no children
+			if(numChildren == 0) {
+				return this;
+			}
+			
+			// Recursive Case : go through the keys of the node to check to which node to go next
+			for(int i = 1; i <= numKeys; i++) {
+				if(keys[i] > value) {
+					// go to the child at position i-1
+					return children[i-1].search(value);
+				} else if (keys[i] < value) {
+					// go to the next key
+					i++;
+				} else {
+					// this is the right place!
+					return this;
+				}
+			}
+			// Should never reach that portion, just to shut up the compiler
+			return null;
+		}
+		
+		/**
+		 * Return the keys separated with a space
+		 * @return "key1 key2 key3"
+		 */
+		public String toString() {
+			String returnValue = "";
+			for(int i = 0; i < numKeys; i++) {
+				returnValue += keys[i] + " ";
+			}
+			return returnValue.substring(0, returnValue.length()-1);
+					}
+	} // end of Node class
 
 
 	private Node root = null;
@@ -74,213 +228,27 @@ public class TwoThreeTree {
 	 * insert a number into the tree. Does not insert duplicates
 	 * @param x number to add
 	 */
-	public void insert(int x) {
-
-		// set up the root
-	if (this.root == null) {
-			this.root = new Node(x);
-			return;
-		}
-		Node current = this.root;
-		
-		// Find the last node
-		while(current.getLeft() != null) {
-			// If the value is smaller than the first key, go to the left
-			if (x < current.getKey1()) {
-				current = current.getLeft();
-			// If there is a second key and the value is between key1 and key2, go to the middle child
-			} else if( x == current.getKey1()) {
-				return;
-				// If the second key exist (ie if the node has three children)
-			} else if (current.getKey2() != null) {
-				// if the value goes between the left and right child
-				if (x < current.getKey2()) {
-					current = current.getMiddle();
-				// if the value is already in the tree
-				} else if (x == current.getKey2()) {
-					return;
-				// if the value goes after the right child
-				} else {
-					current = current.getRight();
-				}
-			// If the value goes after the right child
-			} else {
-				current = current.getRight();
-			}
-		}
-		
-		// Compare with the last node traversed and insert it
-		// If there is room
-		if (current.getKey2() == null) {
-			// Add the key to the node
-			current.setKey2(x);
-			// Orders the keys by increasing numbers
-			this.orderKeys(current);
-		}
-		// Else split node(s), and values up as need
-		else {
-			this.splitLeaf (current, x);
+	public void insert(int value) {
+		if (root == null) {
+			root = new Node(value);
+		} else {
+			root.addKey(value);
 		}
 	}
 	
-	/**
-	 * Spilt a leaf and sends the new node up
-	 * precondition: current != null
-	 * @param current leaf to split
-	 * @param x value to insert
-	 */
-	private void splitLeaf(Node current, Integer x) {
-		// Exit case : there is room in the second key to insert x or the parent is the root (ie getParent == null)
-		// Calling recursive split case : there is a value to insert (x != null)
 		
-		// orders the 3 keys to create appropriate new Nodes (left child, middle to move up, right child)
-		PriorityQueue<Integer> maxHeap = new PriorityQueue<Integer>();
-		maxHeap.add(current.getKey1());
-		maxHeap.add(current.getKey2());
-		maxHeap.add(x);
-
-		// Split up left/right and middle, sets up children
-		Node leftNode = new Node(maxHeap.remove());
-		Node middleNode = new Node(maxHeap.remove());
-		Node rightNode = new Node(maxHeap.remove());
-		middleNode.setLeft(leftNode);
-		middleNode.setRight(rightNode);
-		rightNode.setParent(middleNode);
-		leftNode.setParent(middleNode);
-		
-		// Call on parent with middle key
-		current.setKey1(null);	// signifies to split that this node is no longer relevant
-		sendUp(current.parentNode, middleNode);
-	}
-	
-	/**
-	 * Recursive function sending a node up with its children
-	 * Recursively split the node if needed
-	 * @param current Node to send up
-	 * @param x Node to insert with two children to attach back to the parent node
-	 */
-	private void sendUp (Node current, Node x) {
-		// Exit case 1: the current node is the root
-		if(current == null) {
-			this.root = x;
-		}
-		// Exit case 2: there is room in the current node to add the key
-		else if(current.getKey2() == null) {
-			// Add the key
-			current.setKey2(x.getKey1());
-			this.orderKeys(current);
-			
-			// Attaches the children in proper order
-			PriorityQueue<Node> maxHeap = new PriorityQueue<Node>();
-			maxHeap.add(current.getLeft());
-			maxHeap.add(current.getRight());
-			maxHeap.add(x.getRight());
-			maxHeap.add(x.getLeft());
-			maxHeap.remove(); // get ride of the irrelevant node
-			current.setLeft(maxHeap.remove());
-			current.setMiddle(maxHeap.remove());
-			current.setRight(maxHeap.remove());
-			current.getRight().setParent(current);
-			current.getMiddle().setParent(current);
-			current.getLeft().setParent(current);;
-		}
-		// Recursive case : the node needs to split and send a value + children up
-		else {
-			PriorityQueue<Node> maxHeap = new PriorityQueue<Node>();
-			// One of those children is not longer relevant, its key1 = null so the compareTp method will make sure it
-			// is the lowest value of the maxheap.
-			// Get all the possible children of the current node (4, that will later be divided among two new nodes
-			maxHeap.add(current.getLeft());
-			maxHeap.add(current.getMiddle());
-			maxHeap.add(current.getRight());
-			maxHeap.add(x.getLeft());
-			maxHeap.add(x.getRight());
-			//maxHeap.remove(); // get ride of the irrelevant node
-			
-			// Split the current node by comparing the key
-			PriorityQueue<Integer> maxHeapInt = new PriorityQueue<Integer>();
-			maxHeapInt.add(current.key1);
-			maxHeapInt.add(current.key2);
-			maxHeapInt.add(x.key1);
-			maxHeap.remove(); // Get ride of the irrelevant node
-			Node leftNode = new Node(maxHeapInt.remove());
-			Node middleNode = new Node(maxHeapInt.remove());
-			Node rightNode = new Node(maxHeapInt.remove());
-			
-			// Set the children of the node to send up
-			middleNode.setLeft(leftNode);
-			middleNode.setRight(rightNode);
-			leftNode.setParent(middleNode);
-			rightNode.setParent(middleNode);
-			
-			// Set the children of those children
-			leftNode.setLeft(maxHeap.remove());
-			leftNode.setRight(maxHeap.remove());
-			rightNode.setLeft(maxHeap.remove());
-			rightNode.setRight(maxHeap.remove());
-
-			// Set the parents of the children's children
-			leftNode.getLeft().setParent(leftNode);
-			leftNode.getRight().setParent(leftNode);
-			rightNode.getLeft().setParent(rightNode);
-			rightNode.getRight().setParent(rightNode);
-			
-			// Recursive call to move the middle key up,
-			// With reference to its children so they can be attached to the parent
-			current.setKey1(null); // signifies the current node is no longer relevant
-			this.sendUp(current.getParent(), middleNode);
-		}
-	}
-	
-	private void orderKeys(Node current) {
-		if (current.getKey1() > current.getKey2()) {
-			int temp = current.getKey1();
-			current.setKey1(current.getKey2());
-			current.setKey2(temp);
-		}
-	}
-
-	
 	/**
 	 * Looks for a number in the tree. Returns a string the the key/keys in that node or in the last leaf node visited
 	 * if the value is not in the tree.
 	 * @param x number to look for
 	 * @return key(s) of the last node visited
 	 */
-	public String search(int x) {
-		if(this.root == null) {
-			return "empty tree";
+	public String search(int value) {
+		if (root != null) {
+			return root.search(value).toString();
 		}
 		
-		Node current = this.root;
-		while(current.getLeft() != null) {
-			if ( x < current.getKey1() ) {
-				current = current.getLeft();
-			} else if ( x == current.getKey1() ) {
-				String returnValue = current.getKey1().toString();
-				if(current.getKey2() != null) {
-					returnValue += " " + current.getKey2();
-				}
-				return returnValue;
-			} else if ( current.getKey2() != null ) {
-				if ( x == current.getKey2() ) {
-					return current.getKey1() + " " + current.getKey1();
-				} else if ( x < current.getKey2() ) {
-					current = current.getMiddle();
-				} else {
-					current = current.getRight();
-				}
-			} else {
-				current = current.getRight();
-			}
-		}
-		
-		// if the value was not found, return the keys of the last visited node
-		String returnValue = current.getKey1().toString();
-		if(current.getKey2() != null) {
-			returnValue += " " + current.getKey2();
-		}
-		return returnValue;
+		return "The tree is empty";
 	}
 	
 }
