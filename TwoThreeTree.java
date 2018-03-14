@@ -8,7 +8,6 @@ public class TwoThreeTree {
 		private static final int MAX_KEYS = 3;
 		
 		private Node[] children = new Node[Node.MAX_CHILDREN];
-		private int numChildren = 0;
 		private int[] keys = new int[Node.MAX_KEYS];
 		private int numKeys = 0;
 		
@@ -21,84 +20,8 @@ public class TwoThreeTree {
 			this.keys[0] = x;
 			this.numKeys++;
 		}
-		
-		/**
-		 * Add a child to the node if the max number of children was not already reached
-		 * precondition: numChildren - numKeys <= 1
-		 * @param child node child to add at the right position
-		 */
-		public void addChild(Node child) {
-			if(this.numChildren < Node.MAX_CHILDREN && (numChildren - numKeys <= 1) ) {
-				// Check where to add the child
-				int i = numChildren;
-				while (i >= 0) {
-					if( i == 0) {
-						children[i] = child;
-					} else if (keys[i-1] > child.keys[0]) {
-						children[i] = children [i-1];
-					} else {
-						children[i] = child;
-						break;
-					}
-					i--;
-				}
-				this.numChildren++;
-			}
-		}
-		
-		/**
-		 * Add a key to the node if the max number of key was not already reached
-		 * @param key value to add to the leaf
-		 * @return null is the leaf node did not split, a reference to the resulting node (itself) if the node split.
-		 */
-		private Node addKeytoLeaf(int key) {
-			if(this.numKeys < Node.MAX_KEYS) {
-				// Check where to insert the new key
-				int i = numKeys;
-				keys[numKeys] = key;
-				Arrays.sort(keys, 0, numKeys);
-				numKeys++;
-
-				/**
-				while( i >= 0 ) {
-					// If the new key goes to the right of the current key
-					if( i == 0 ) {
-						keys[i] = key;
-					// If the new key  goes to the left of the current key, moves the current key to free up some space
-					} else if ( keys[i-1] > key) {
-						keys[i] = keys[i-1];
-					// If the new key goes to the last position
-					} else {
-						keys[i] = key;
-						break;
-					}
-					i--;
-				} */
 				
-				if (numKeys == Node.MAX_KEYS) {
-					// Send the new Node back to its parent to merge the key and children
-					return splitLeaf(this);
-				}
-			}
-			// Signify no new nodes were created (nothing was split)
-			return null;
-		}
-		
-		private Node splitLeaf(Node leaf) {
-			Node center = new Node(keys[1]);
-			Node right = new Node(keys[2]);
-			Node left = new Node(keys[0]);
-			
-			center.addChild(left);
-			center.addChild(right);
-			
-			leaf = center;
-			return leaf;
-			
-			
-		}
-		
-		private boolean isLeaf()  { return ( numChildren == 0 ); }
+		private boolean isLeaf()  { return ( children[0] == null ); }
 		
 		/**
 		 * Recursive function adding a key to a series of node
@@ -108,9 +31,9 @@ public class TwoThreeTree {
 		public Node addKey(int key) {
 			Node childToMerge = null;
 			
-			// Exit case: If the node is a leaf
+			// Exit case: If the node is a leaf, merge an node with just a key with the current node (ie, add the key)
 			if( isLeaf() ) {
-				childToMerge = this.addKeytoLeaf(key);
+				childToMerge = this.merge(new Node(key));
 			// Recursive case: go down the children until finding the leaf
 			}else {
 				int i = 0;
@@ -134,17 +57,57 @@ public class TwoThreeTree {
 			return null;
 		}
 		
+		enum TYPE{
+			children, keys
+		}
+		private void moveRight(TYPE type, int index) {
+			switch (type) {
+				// Move the children to the right, freeing the index
+				case children:
+					int i = this.numKeys;
+					while(i > index) {
+						children[i+1] = children[i];
+						i--;
+					}
+					break;
+				case keys:
+					i = this.numKeys -1;
+					while(i > index) {
+						keys[i+1] = keys[i];
+						i--;
+					}
+					break;
+			}
+		}
 		/**
 		 * merges the keys and children of two nodes and check if the resulting node needs to split
+		 * precondition: child has exactly one key and no more than 2 children
 		 * @param child node to merge with
 		 * @return null if the resulting node did not split, a reference to the resulting node if the node split.
 		 */
 		private Node merge(Node child) {
-			this.addKey(child.keys[0]);
-			this.addChild(child.children[0]);
-			this.addChild(child.children[1]);
-			if (numChildren == Node.MAX_CHILDREN || numKeys == Node.MAX_KEYS) {
-				return splitNode(this);
+			int keyIndex = 0;
+			while(keyIndex < this.numKeys && child.keys[0] > this.keys[keyIndex]) {
+				keyIndex++;
+			}
+			// Check for duplicate, does not do anything
+			if (child.keys[0] == this.keys[keyIndex]) {
+				return null;
+			}
+			// Move the keys to make room
+			moveRight(TYPE.keys,  keyIndex);
+			keys[keyIndex] = child.keys[0];	
+			numKeys++;
+			
+			// make sure there is room
+			moveRight(TYPE.children, keyIndex);
+			// add the child
+			children[keyIndex] = children[0];
+			moveRight(TYPE.children, keyIndex +1);
+			children[keyIndex + 1] = children[1];
+
+			if (numKeys == Node.MAX_KEYS) {
+				return this.splitNode();
 			}
 			return null;
 		}
@@ -154,24 +117,26 @@ public class TwoThreeTree {
 		 * precondition: the node calling the function has to have 4 children and three keys
 		 * @return a reference to the center node created, to be given to its parent node for merging
 		 */
-		public Node splitNode(Node overLoadedNode) {
+		public Node splitNode() {
 			// Create the new nodes
-			Node center = new Node(keys[1]);
-			Node right = new Node(keys[0]);
-			Node left = new Node(keys[2]);
+			Node node0 = new Node(this.keys[0]);
+			Node node1 = new Node(this.keys[2]);
 			
 			// Set the children of the middle nodes
-			center.addChild(right);
-			center.addChild(left);
+			node0.children[0] = this.children[0];
+			node0.children[1] = this.children[1];
+			node1.children[2] = this.children[2];
+			node1.children[3] = this.children[3];
 			
-			// Set the children of the left and right nodes
-			right.addChild(overLoadedNode.children[0]);
-			right.addChild(overLoadedNode.children[1]);
-			left.addChild(overLoadedNode.children[2]);
-			left.addChild(overLoadedNode.children[3]);
-			
-			overLoadedNode = center;
-			return center;
+			// Set this node
+			this.children[0] = node0;
+			this.children[1] = node1;
+			this.children[2] = null;
+			this.children[3] = null;
+			this.keys[0] = this.keys[1];
+			this.numKeys = 1;
+
+			return this;
 		}
 		
 		/**
@@ -181,25 +146,23 @@ public class TwoThreeTree {
 		 */
 		public Node search(int value) {
 			// Exit Case: there are no children
-			if(numChildren == 0) {
+			if(children[0] == null) {
 				return this;
 			}
 			
-			// Recursive Case : go through the keys of the node to check to which node to go next
-			for(int i = 1; i <= numKeys; i++) {
-				if(keys[i] > value) {
-					// go to the child at position i-1
-					return children[i-1].search(value);
-				} else if (keys[i] < value) {
-					// go to the next key
-					i++;
-				} else {
-					// this is the right place!
-					return this;
-				}
+			// Find the appropriate index 
+			int index = 0;
+			while(keys[index] < value && index <= numKeys) {
+				index++;
 			}
-			// Should never reach that portion, just to shut up the compiler
-			return null;
+			
+			// Exit Case: if this is the right place
+			if (keys[index] == value) {
+				return this;
+			}
+			
+			// Recursive case: go to the appropriate child to search there
+			return children[index-1].search(value);
 		}
 		
 		/**
